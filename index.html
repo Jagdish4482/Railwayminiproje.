@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Railway Management System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- ================= HEADER ================= -->
+    <header>
+        <h1>Railway Management System</h1>
+        <p>An Automated Railway Reservation and Management Platform</p>
+    </header>
+
+    <!-- ================= MENU BAR ================= -->
+    <nav>
+        <button class="active" onclick="showSection('book', this)">Book Ticket</button>
+        <button onclick="showSection('pnr', this)">PNR Status</button>
+        <button onclick="showSection('cancel', this)">Cancel Ticket</button>
+        <button onclick="showSection('trains', this)">Trains</button>
+        <a href="report.html" target="_blank">Live Report</a>
+    </nav>
+
+    <main>
+
+        <!-- ========== 1. BOOK TICKET ========== -->
+        <section id="book" class="active">
+            <h2>Book Ticket</h2>
+
+            <div class="grid">
+                <div>
+                    <label>Passenger Name</label>
+                    <input id="name" placeholder="Rahul Sharma">
+                </div>
+
+                <div>
+                    <label>Age</label>
+                    <input id="age" type="number" min="1" max="120" placeholder="25">
+                </div>
+
+                <div>
+                    <label>Gender</label>
+                    <select id="gender">
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                        <option value="O">Other</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Phone</label>
+                    <input id="phone" maxlength="10" placeholder="9876543210">
+                </div>
+
+                <div>
+                    <label>Train</label>
+                    <select id="train">
+                        <option value="12001">12001 - Shatabdi Express (Rs 800)</option>
+                        <option value="12951">12951 - Rajdhani Express (Rs 2200)</option>
+                        <option value="12301">12301 - Howrah Rajdhani (Rs 2500)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Travel Date</label>
+                    <input id="date" type="date">
+                </div>
+            </div>
+
+            <button class="btn" onclick="bookTicket()">Book Now</button>
+            <div class="msg" id="bookMsg"></div>
+        </section>
+
+        <!-- ========== 2. PNR STATUS ========== -->
+        <section id="pnr">
+            <h2>PNR Status</h2>
+
+            <label>Enter PNR</label>
+            <input id="pnrInput" type="number" placeholder="1001">
+
+            <button class="btn" onclick="checkPnr()">Check Status</button>
+            <div class="msg" id="pnrMsg"></div>
+        </section>
+
+        <!-- ========== 3. CANCEL TICKET ========== -->
+        <section id="cancel">
+            <h2>Cancel Ticket</h2>
+
+            <label>Enter PNR</label>
+            <input id="cancelInput" type="number" placeholder="1001">
+
+            <button class="btn danger" onclick="cancelTicket()">Cancel Ticket</button>
+            <div class="msg" id="cancelMsg"></div>
+        </section>
+
+        <!-- ========== 4. TRAINS AND MY BOOKINGS ========== -->
+        <section id="trains">
+            <h2>Available Trains</h2>
+
+            <div class="scroll">
+                <table>
+                    <tr>
+                        <th>Train No</th>
+                        <th>Name</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Fare</th>
+                    </tr>
+                    <tr>
+                        <td>12001</td>
+                        <td>Shatabdi Express</td>
+                        <td>New Delhi</td>
+                        <td>Chandigarh</td>
+                        <td>Rs 800</td>
+                    </tr>
+                    <tr>
+                        <td>12951</td>
+                        <td>Rajdhani Express</td>
+                        <td>New Delhi</td>
+                        <td>Mumbai Central</td>
+                        <td>Rs 2200</td>
+                    </tr>
+                    <tr>
+                        <td>12301</td>
+                        <td>Howrah Rajdhani</td>
+                        <td>New Delhi</td>
+                        <td>Howrah</td>
+                        <td>Rs 2500</td>
+                    </tr>
+                </table>
+            </div>
+
+            <h2 style="margin-top: 28px;">My Bookings</h2>
+
+            <div class="scroll">
+                <table id="ticketTable">
+                    <tr>
+                        <th>PNR</th>
+                        <th>Name</th>
+                        <th>Train</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>Mini Project - Railway Management System | HTML + CSS + C++ + PL/SQL</footer>
+
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+
+        // ---------- Data (demo only, stored in browser memory) ----------
+
+        // Total seats of each train
+        var totalSeats = { "12001": 5, "12951": 3, "12301": 4 };
+
+        // Ticket fare of each train
+        var fare = { "12001": 800, "12951": 2200, "12301": 2500 };
+
+        // How many tickets are booked: key is "trainNo|date"
+        var bookedCount = {};
+
+        // List of all tickets
+        var tickets = [];
+
+        // Next PNR number
+        var nextPnr = 1001;
+
+
+        // ---------- Small helper functions ----------
+
+        // Show a message inside a box
+        function showMessage(boxId, text) {
+            var box = document.getElementById(boxId);
+            box.innerHTML = text;
+            box.style.display = "block";
+        }
+
+        // Find a ticket using its PNR (returns undefined if not found)
+        function findTicket(pnr) {
+            for (var i = 0; i < tickets.length; i++) {
+                if (tickets[i].pnr == pnr) {
+                    return tickets[i];
+                }
+            }
+            return undefined;
+        }
+
+        // Make a coloured status label
+        function statusTag(status) {
+            return '<span class="tag ' + status + '">' + status + '</span>';
+        }
+
+
+        // ---------- Menu: switch between sections ----------
+
+        function showSection(sectionId, clickedButton) {
+            // hide all sections
+            var sections = document.getElementsByTagName("section");
+            for (var i = 0; i < sections.length; i++) {
+                sections[i].classList.remove("active");
+            }
+
+            // remove highlight from all menu buttons
+            var buttons = document.querySelectorAll("nav button");
+            for (var j = 0; j < buttons.length; j++) {
+                buttons[j].classList.remove("active");
+            }
+
+            // show chosen section and highlight clicked button
+            document.getElementById(sectionId).classList.add("active");
+            clickedButton.classList.add("active");
+        }
+
+
+        // ---------- 1. Book ticket ----------
+
+        function bookTicket() {
+            var name = document.getElementById("name").value.trim();
+            var age = document.getElementById("age").value;
+            var phone = document.getElementById("phone").value;
+            var train = document.getElementById("train").value;
+            var date = document.getElementById("date").value;
+
+            // check that everything is filled
+            if (name == "" || age == "" || date == "" || phone.length != 10) {
+                showMessage("bookMsg", "Please fill all fields (phone must be 10 digits).");
+                return;
+            }
+
+            // count this booking for the selected train and date
+            var key = train + "|" + date;
+            if (bookedCount[key] == undefined) {
+                bookedCount[key] = 0;
+            }
+            bookedCount[key] = bookedCount[key] + 1;
+
+            // seat available -> CONFIRMED, otherwise WAITING
+            var status = "WAITING";
+            if (bookedCount[key] <= totalSeats[train]) {
+                status = "CONFIRMED";
+            }
+
+            // create the ticket
+            var ticket = {
+                pnr: nextPnr,
+                name: name,
+                train: train,
+                date: date,
+                status: status
+            };
+            nextPnr = nextPnr + 1;
+            tickets.push(ticket);
+
+            showTickets();
+
+            // show result
+            var message = "PNR: <b>" + ticket.pnr + "</b> | Status: " + statusTag(status);
+            if (status == "CONFIRMED") {
+                message = message + " | Fare: Rs " + fare[train];
+            } else {
+                message = message + " | Added to waiting list";
+            }
+            showMessage("bookMsg", message);
+        }
+
+
+        // ---------- 2. PNR status ----------
+
+        function checkPnr() {
+            var pnr = document.getElementById("pnrInput").value;
+            var ticket = findTicket(pnr);
+
+            if (ticket == undefined) {
+                showMessage("pnrMsg", "Invalid PNR.");
+                return;
+            }
+
+            showMessage("pnrMsg",
+                "<b>" + ticket.name + "</b> | Train " + ticket.train +
+                " | " + ticket.date + " | " + statusTag(ticket.status));
+        }
+
+
+        // ---------- 3. Cancel ticket ----------
+
+        function cancelTicket() {
+            var pnr = document.getElementById("cancelInput").value;
+            var ticket = findTicket(pnr);
+
+            if (ticket == undefined) {
+                showMessage("cancelMsg", "Invalid PNR.");
+                return;
+            }
+            if (ticket.status == "CANCELLED") {
+                showMessage("cancelMsg", "Ticket already cancelled.");
+                return;
+            }
+
+            var wasConfirmed = (ticket.status == "CONFIRMED");
+            ticket.status = "CANCELLED";
+            var note = "";
+
+            if (wasConfirmed) {
+                // days left before journey
+                var today = new Date(new Date().toDateString());
+                var daysLeft = Math.round((new Date(ticket.date) - today) / 86400000);
+
+                // refund rule: 2+ days = 80%, 1 day = 50%, same day = 25%
+                var percent = 0.25;
+                if (daysLeft >= 2) {
+                    percent = 0.80;
+                } else if (daysLeft == 1) {
+                    percent = 0.50;
+                }
+                note = " Refund: Rs " + (fare[ticket.train] * percent) + ".";
+
+                // give the seat to the first waiting passenger
+                for (var i = 0; i < tickets.length; i++) {
+                    var t = tickets[i];
+                    if (t.train == ticket.train && t.date == ticket.date && t.status == "WAITING") {
+                        t.status = "CONFIRMED";
+                        note = note + " Waiting PNR " + t.pnr + " is now CONFIRMED.";
+                        break;
+                    }
+                }
+            }
+
+            showTickets();
+            showMessage("cancelMsg", "PNR " + ticket.pnr + " cancelled." + note);
+        }
+
+
+        // ---------- Show all tickets in the "My Bookings" table ----------
+
+        function showTickets() {
+            var html = "<tr><th>PNR</th><th>Name</th><th>Train</th><th>Date</th><th>Status</th></tr>";
+
+            for (var i = 0; i < tickets.length; i++) {
+                var t = tickets[i];
+                html = html + "<tr>" +
+                    "<td>" + t.pnr + "</td>" +
+                    "<td>" + t.name + "</td>" +
+                    "<td>" + t.train + "</td>" +
+                    "<td>" + t.date + "</td>" +
+                    "<td>" + statusTag(t.status) + "</td>" +
+                    "</tr>";
+            }
+
+            document.getElementById("ticketTable").innerHTML = html;
+        }
+
+
+        // ---------- When page opens: do not allow past dates ----------
+
+        document.getElementById("date").min = new Date().toISOString().split("T")[0];
+
+    </script>
+
+</body>
+</html>
